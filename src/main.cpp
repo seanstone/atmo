@@ -25,7 +25,8 @@ public:
 protected:
 	AtmoShader* atmoShader;
 	float sunAngleDeg = 87;
-	float fovDeg = 90;
+	float fovDeg = 65;
+	float elevation = 1000;
 };
 
 MainWindow::MainWindow()
@@ -55,6 +56,7 @@ MainWindow::MainWindow()
 	atmoShader->setParameter("WindowSize", vec2(width, height));
 	atmoShader->setParameter("sunAngle", float(sunAngleDeg * M_PI / 180.0));
 	atmoShader->setParameter("fov", float(fovDeg * M_PI / 180.0));
+	atmoShader->setParameter("elevation", elevation);
 	atmoShader->Shader::unbind();
 }
 
@@ -102,10 +104,16 @@ void MainWindow::handleEvent(SDL_Event* event)
 			if (event->button.button == SDL_BUTTON_LEFT)
 			{
 				printf("left: %d, %d\r\n", event->button.x, event->button.y);
+				elevation *= 0.9;
+				atmoShader->setParameter("elevation", elevation);
+				printf("elevation: %f\r\n", elevation);
 			}
 			else if (event->button.button == SDL_BUTTON_RIGHT)
 			{
 				printf("right: %d, %d\r\n", event->button.x, event->button.y);
+				elevation *= 1.1;
+				atmoShader->setParameter("elevation", elevation);
+				printf("elevation: %f\r\n", elevation);
 			}
 		}
 	}

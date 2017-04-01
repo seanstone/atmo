@@ -17,6 +17,7 @@
 uniform vec2 WindowSize;
 uniform float sunAngle;
 uniform float fov;
+uniform float elevation;
 
 #ifndef M_PI
 #define M_PI (3.14159265358979323846f)
@@ -190,8 +191,7 @@ void renderFisheye()
 
 void renderSkydome()
 {
-    int numPixelSamples = 3;
-
+    int numPixelSamples = 2;
 	for (int m = 0; m < numPixelSamples; ++m)
 	{
 		for (int n = 0; n < numPixelSamples; ++n)
@@ -230,11 +230,11 @@ void main()
 {
 	init();
 
-	atmo.sunDirection = vec3(0, cos(sunAngle), -sin(sunAngle));
+	atmo.sunDirection = normalize(vec3(0, cos(sunAngle), -sin(sunAngle)));
 
-	vec3 pos = vec3(0, atmo.earthRadius + 1000, 0);
+	vec3 pos = vec3(0, atmo.earthRadius + elevation, 0);
 	vec3 up = vec3(0, -1 ,0);
-	camera = lookAt(pos, vec3(0, atmo.earthRadius + 1000, -1), up);
+	camera = lookAt(pos, vec3(0, atmo.earthRadius + elevation, -1), up);
 	camera.fov = fov;
 
 	renderSkydome();
