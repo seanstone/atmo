@@ -15,10 +15,39 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 uniform vec2 WindowSize;
+uniform float sunAngle;
+uniform float fov;
 
 #ifndef M_PI
 #define M_PI (3.14159265358979323846f)
 #endif
+
+struct Camera
+{
+	vec3 pos;
+	vec3 dir;
+	vec3 right;
+	vec3 up;
+	float fov;
+};
+
+vec3 createCameraRay(Camera camera)
+{
+	vec2 uv = gl_FragCoord.xy / WindowSize;
+	float angle = tan(camera.fov * 0.5f);
+	return normalize((uv.x * 2.0f - 1.0f) * camera.right * (WindowSize.x / WindowSize.y) * angle + (1.0f - uv.y * 2.0f) * camera.up * angle + camera.dir);
+}
+
+Camera lookAt (vec3 camPos, vec3 lookAt, vec3 upVec)
+{
+	vec3 diffBtw = lookAt - camPos;
+	Camera camera;
+	camera.pos = camPos;
+	camera.right = normalize(cross(diffBtw, upVec));
+	camera.dir = normalize(diffBtw);
+	camera.up = normalize(upVec);
+	return camera;
+}
 
 vec3 raySphereIntersect(const vec3 orig, const vec3 dir, const float radius)
 {
@@ -124,10 +153,11 @@ vec3 computeIncidentLight(const vec3 orig, const vec3 dir, float tmin, float tma
     // We use a magic number here for the intensity of the sun (20). We will make it more
     // scientific in a future revision of this lesson/code
     // [/comment]
-    return (sumR * atmosphere.betaR * phaseR + sumM * atmosphere.betaM * phaseM) * 20;
+    return (sumR * atmosphere.betaR * phaseR + sumM * atmosphere.betaM * phaseM) * 50;
 }
 
 Atmosphere atmo;
+Camera camera;
 
 void init()
 {
@@ -153,28 +183,24 @@ void renderFisheye()
 		float theta = acos(1 - z2);
 		vec3 dir = vec3(sin(theta) * cos(phi), cos(theta), sin(theta) * sin(phi));
 		// 1 meter above sea level
-		float tmax = 1e8;
+		float tmax = 1e20;
 		color = computeIncidentLight(vec3(0, atmo.earthRadius + 1, 0), dir, 0, tmax, atmo);
 	}
 }
 
 void renderSkydome()
 {
-	float aspectRatio = WindowSize.x / WindowSize.y;
-    float fov = 90;
-    float angle = tan(fov * M_PI / 180 * 0.5f);
-    int numPixelSamples = 2;
-    vec3 orig = vec3(0, atmo.earthRadius + 100e3, 30000); // camera position
+    int numPixelSamples = 3;
 
 	for (int m = 0; m < numPixelSamples; ++m)
 	{
 		for (int n = 0; n < numPixelSamples; ++n)
 		{
-			float random = 0.5; // TODO: implement random generator between [0, 1]
-			float rayx = (2 * (gl_FragCoord.x + (m + random) / numPixelSamples) / WindowSize.x - 1) * aspectRatio * angle;
-			float rayy = (1 - (gl_FragCoord.y + (n + random) / numPixelSamples) / WindowSize.y * 2) * angle;
-			vec3 dir = vec3(rayx, rayy, -1);
-			dir /= length(dir);
+			//float random = 0.5; // TODO: implement random generator between [0, 1]
+			//float rayx = (2 * (gl_FragCoord.x + (m + random) / numPixelSamples) / WindowSize.x - 1) * aspectRatio * angle;
+			//float rayy = (2 * (gl_FragCoord.y + (n + random) / numPixelSamples) / WindowSize.y - 1) * angle;
+			vec3 dir = createCameraRay(camera);
+
 			// [comment]
 			// Does the ray intersect the planetary body? (the intersection test is against the Earth here
 			// not against the atmosphere). If the ray intersects the Earth body and that the intersection
@@ -186,15 +212,15 @@ void renderSkydome()
 			// of the ray to the point where it leaves the atmosphere.
 			// [/comment]
 			float t0, t1;
-			float tMax = 1e8; // Infinity
-			vec3 intersect = raySphereIntersect(orig, dir, atmo.earthRadius);
+			float tMax = 1e20; // Infinity
+			vec3 intersect = raySphereIntersect(camera.pos, dir, atmo.earthRadius);
 			t0 = intersect.y; t1 = intersect.z;
 			if (bool(intersect.x) && t1 > 0)
 			 	tMax = max(0.f, t0);
 			// [comment]
 			// The *viewing or camera ray* is bounded to the range [0:tMax]
 			// [/comment]
-			color += computeIncidentLight(orig, dir, 0, tMax, atmo);
+			color += computeIncidentLight(camera.pos, dir, 0, tMax, atmo);
 		}
 	}
 	color *= 1.f / (numPixelSamples * numPixelSamples);
@@ -204,11 +230,15 @@ void main()
 {
 	init();
 
-	float sunAngle = M_PI * 45 / 180.0f;
 	atmo.sunDirection = vec3(0, cos(sunAngle), -sin(sunAngle));
 
-	//renderSkydome();
-	renderFisheye();
+	vec3 pos = vec3(0, atmo.earthRadius + 1000, 0);
+	vec3 up = vec3(0, -1 ,0);
+	camera = lookAt(pos, vec3(0, atmo.earthRadius + 1000, -1), up);
+	camera.fov = fov;
+
+	renderSkydome();
+	//renderFisheye();
 
 	color.x = color.x < 1.413f ? pow(color.x * 0.38317f, 1.0f / 2.2f) : 1.0f - exp(-color.x);
 	color.y = color.y < 1.413f ? pow(color.y * 0.38317f, 1.0f / 2.2f) : 1.0f - exp(-color.y);

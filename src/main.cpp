@@ -24,6 +24,8 @@ public:
 
 protected:
 	AtmoShader* atmoShader;
+	float sunAngleDeg = 87;
+	float fovDeg = 90;
 };
 
 MainWindow::MainWindow()
@@ -47,8 +49,13 @@ MainWindow::MainWindow()
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 2);
 	glEnable(GL_MULTISAMPLE);
-
 	glEnable(GL_FRAMEBUFFER_SRGB);
+
+	atmoShader->Shader::bind();
+	atmoShader->setParameter("WindowSize", vec2(width, height));
+	atmoShader->setParameter("sunAngle", float(sunAngleDeg * M_PI / 180.0));
+	atmoShader->setParameter("fov", float(fovDeg * M_PI / 180.0));
+	atmoShader->Shader::unbind();
 }
 
 MainWindow::~MainWindow()
@@ -62,16 +69,8 @@ void MainWindow::render()
 	atmoShader->render();
 }
 
-float zoom = 0.1;
-vec3 offset = vec3(-5, -5, 0);
-
 void MainWindow::update()
 {
-	atmoShader->Shader::bind();
-	//mat4 projection = scale(vec3(zoom)) * scale(vec3(1, -1, 1)) * translate(offset);
-	atmoShader->setParameter("WindowSize", vec2(width, height));
-	atmoShader->Shader::unbind();
-
 	// if(getKeyState(Key::Esc) == true)
 	// 	exit(0);
 
@@ -88,12 +87,15 @@ void MainWindow::handleEvent(SDL_Event* event)
 		case SDL_MOUSEWHEEL:
 		{
 			printf("wheel: %d, %d\r\n", event->wheel.x, event->wheel.y);
-			float newzoom = zoom * (1 + event->wheel.y * .1);
-			if (newzoom > 0.01 && newzoom < 0.2)
-			{
-				zoom = newzoom;
-				printf("zoom: %f\r\n", zoom);
-			}
+			sunAngleDeg += event->wheel.y * 2;
+			if (sunAngleDeg < -120)
+				sunAngleDeg = 1200;
+			if (sunAngleDeg > 120)
+				sunAngleDeg = 120;
+			printf("sunAngle: %f\r\n", sunAngleDeg);
+			atmoShader->Shader::bind();
+			atmoShader->setParameter("sunAngle", float(sunAngleDeg * M_PI / 180.0));
+			atmoShader->Shader::unbind();
 		}
 		case SDL_MOUSEBUTTONDOWN:
 		{
@@ -104,10 +106,6 @@ void MainWindow::handleEvent(SDL_Event* event)
 			else if (event->button.button == SDL_BUTTON_RIGHT)
 			{
 				printf("right: %d, %d\r\n", event->button.x, event->button.y);
-				float dx = (1 - 2 * (float)event->button.x / width) / zoom;
-				float dy = (1 - 2 * (float)event->button.y / height) / zoom;
-				offset += 0.5f * vec3(dx, dy, 0);
-				printf("pan: %f, %f\r\n", dx, dy);
 			}
 		}
 	}
