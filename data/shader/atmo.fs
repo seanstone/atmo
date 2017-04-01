@@ -16,8 +16,11 @@
 
 uniform vec2 WindowSize;
 uniform float sunAngle;
-uniform float fov;
-uniform float elevation;
+
+uniform vec3 cam_pos;
+uniform vec3 cam_right;
+uniform vec3 cam_up;
+uniform float cam_fov;
 
 #ifndef M_PI
 #define M_PI (3.14159265358979323846f)
@@ -36,17 +39,16 @@ vec3 createCameraRay(Camera camera)
 {
 	vec2 uv = gl_FragCoord.xy / WindowSize;
 	float angle = tan(camera.fov * 0.5f);
-	return normalize((uv.x * 2.0f - 1.0f) * camera.right * (WindowSize.x / WindowSize.y) * angle + (1.0f - uv.y * 2.0f) * camera.up * angle + camera.dir);
+	return normalize((uv.x * 2.0f - 1.0f) * camera.right * (WindowSize.x / WindowSize.y) * angle + (uv.y * 2.0f - 1.0f) * camera.up * angle + camera.dir);
 }
 
-Camera lookAt (vec3 camPos, vec3 lookAt, vec3 upVec)
+Camera lookAt (vec3 pos, vec3 lookAt, vec3 right)
 {
-	vec3 diffBtw = lookAt - camPos;
 	Camera camera;
-	camera.pos = camPos;
-	camera.right = normalize(cross(diffBtw, upVec));
-	camera.dir = normalize(diffBtw);
-	camera.up = normalize(upVec);
+	camera.pos = pos;
+	camera.right = normalize(right);
+	camera.dir = normalize(lookAt - pos);
+	camera.up = normalize(cross(camera.right, camera.dir));
 	return camera;
 }
 
@@ -230,12 +232,13 @@ void main()
 {
 	init();
 
-	atmo.sunDirection = normalize(vec3(0, cos(sunAngle), -sin(sunAngle)));
+	atmo.sunDirection = normalize(vec3(-sin(sunAngle), 0, cos(sunAngle)));
 
-	vec3 pos = vec3(0, atmo.earthRadius + elevation, 0);
-	vec3 up = vec3(0, -1 ,0);
-	camera = lookAt(pos, vec3(0, atmo.earthRadius + elevation, -1), up);
-	camera.fov = fov;
+	camera.pos 		= cam_pos;
+	camera.right 	= cam_right;
+	camera.up 		= cam_up;
+	camera.fov 		= cam_fov;
+	camera.dir 		= normalize(cross(camera.right, camera.up));
 
 	renderSkydome();
 	//renderFisheye();
